@@ -2,16 +2,10 @@ from pathlib import Path
 
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
 
 from app.core.config import settings
+from app.core.llm import get_llm
 from app.core.state import AgentState, Finding
-
-llm = ChatGoogleGenerativeAI(
-    model=settings.gemini_model,
-    temperature=settings.llm_temperature,
-    google_api_key=settings.google_api_key,
-)
 
 _prompt_text = (Path(__file__).parent.parent.parent / "core" / "prompts" / "quality.md").read_text()
 
@@ -20,7 +14,7 @@ prompt = ChatPromptTemplate.from_messages([
     ("human", "PR Diff:\n{diff}"),
 ])
 
-quality_chain = prompt | llm | JsonOutputParser()
+quality_chain = prompt | get_llm(json_mode=True) | JsonOutputParser()
 
 
 def quality_node(state: AgentState) -> dict:

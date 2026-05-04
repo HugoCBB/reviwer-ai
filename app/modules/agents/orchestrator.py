@@ -2,33 +2,23 @@ from pathlib import Path
 
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
 
 from app.core.config import settings
+from app.core.llm import get_llm
 from app.core.state import AgentState
 
-# ── LLM ──────────────────────────────────────────────────────────────────────
-llm = ChatGoogleGenerativeAI(
-    model=settings.gemini_model,
-    temperature=settings.llm_temperature,
-    google_api_key=settings.google_api_key,
-)
-
-# ── Prompt loaded from markdown ───────────────────────────────────────────────
 _prompt_text = (Path(__file__).parent.parent.parent / "core" / "prompts" / "orchestrator.md").read_text()
 
 prompt = ChatPromptTemplate.from_messages([
     ("system", _prompt_text),
-    ("human", "Title: {title}\nDescription: {description}\nDiff:\n{diff}"),
+    ("human", "Title: {title}\nDescription: {description}\nAgents done: {agents_done}\nDiff (excerpt):\n{diff}"),
 ])
 
-# ── Chain ─────────────────────────────────────────────────────────────────────
-orchestrator_chain = prompt | llm | JsonOutputParser()
+orchestrator_chain = prompt | get_llm(json_mode=True) | JsonOutputParser()
 
 AGENTS = ["security", "quality", "tests", "docs"]
 
 
-# ── Node ──────────────────────────────────────────────────────────────────────
 def orchestrator_node(state: AgentState) -> dict:
     result = orchestrator_chain.invoke({
         "agents": AGENTS,

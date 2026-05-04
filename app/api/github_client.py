@@ -24,30 +24,24 @@ def get_pr_diff(repo: str, pr_number: int) -> str:
 
 
 def post_review(repo: str, pr_number: int, findings: list[Finding], summary: str) -> None:
-    """Post a review with inline comments and a summary body."""
-    comments = [
-        {
-            "path": f["file"],
-            "position": f["line"] or 1,
-            "body": f"**[{f['agent'].upper()} — {f['severity'].upper()}]** {f['comment']}",
-        }
-        for f in findings
-        if f.get("file") and f.get("line")
-    ]
-
-    criticals = [f for f in findings if f["severity"] == "critical"]
+    """Post a review with findings formatted in the body."""
+    criticals = [f for f in findings if f.get("severity") == "critical"]
     event = "REQUEST_CHANGES" if criticals else "COMMENT"
 
-    payload = {
-        "body": summary,
-        "event": event,
-        "comments": comments,
-    }
+    findings_md = "\n\n".join(
+        f"**[{f['agent'].upper()} — {f['severity'].upper()}]** `{f['file']}` linha {f['line']}\n> {f['comment']}"
+        for f in findings
+        if f.get("file")
+    )
+
+    body = summary
+    if findings_md:
+        body = f"{summary}\n\n---\n\n## Detalhes por agente\n\n{findings_md}"
 
     response = httpx.post(
         f"{GITHUB_API}/repos/{repo}/pulls/{pr_number}/reviews",
         headers=HEADERS,
-        json=payload,
+        json={"body": body, "event": event},
         timeout=30,
     )
     response.raise_for_status()
