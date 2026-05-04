@@ -2,16 +2,10 @@ from pathlib import Path
 
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
 
 from app.core.config import settings
+from app.core.llm import get_llm
 from app.core.state import AgentState, Finding
-
-llm = ChatGoogleGenerativeAI(
-    model=settings.gemini_model,
-    temperature=settings.llm_temperature,
-    google_api_key=settings.google_api_key,
-)
 
 _prompt_text = (Path(__file__).parent.parent.parent / "core" / "prompts" / "docs.md").read_text()
 
@@ -20,14 +14,24 @@ prompt = ChatPromptTemplate.from_messages([
     ("human", "PR Diff:\n{diff}"),
 ])
 
-docs_chain = prompt | llm | JsonOutputParser()
+docs_chain = prompt | get_llm(json_mode=True) | JsonOutputParser()
+
+
+def _normalize(f: dict, agent: str) -> Finding:
+    return Finding(
+        agent=agent,
+        severity=f.get("severity") or "low",
+        file=f.get("file") or f.get("path") or "unknown",
+        line=int(f.get("line") or f.get("line_number") or 1),
+        comment=f.get("comment") or f.get("description") or f.get("message") or "",
+    )
 
 
 def docs_node(state: AgentState) -> dict:
     result = docs_chain.invoke({"diff": state["diff"][: settings.max_diff_tokens]})
 
     findings: list[Finding] = [
-        Finding(agent="docs", **f)
+        _normalize(f, "docs")
         for f in result.get("findings", [])
     ]
 

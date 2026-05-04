@@ -65,6 +65,25 @@ services:
     networks:
       - reviewer-net
 
+  # ollama:
+  #   image: ollama/ollama
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama_data:/root/.ollama
+  #   networks:
+  #     - reviewer-net
+  #   entrypoint: ["/bin/sh", "-c", "ollama serve & until ollama list 2>/dev/null; do sleep 2; done && ollama pull llama3.1 && wait"]
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "ollama list | grep -q llama3.1"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 20
+  #     start_period: 300s
+
 networks:
   reviewer-net:
     driver: bridge
+
+# volumes:
+#   ollama_data:
