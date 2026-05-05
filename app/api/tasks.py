@@ -31,7 +31,10 @@ def review_pr(self, pr_data: dict):
         # 1. fetch diff from GitHub
         diff = get_pr_diff(repo, pr_number)
 
-        # 2. load previous review for context comparison (non-fatal if Redis is down)
+        # 2. load previous review for context comparison.
+        # load_review() catches all Redis exceptions internally and returns
+        # ([], "") as a safe default, so the task is never interrupted by a
+        # Redis failure — the review simply runs without historical context.
         previous_findings, previous_summary = load_review(repo, pr_number)
 
         # 3. run the multi-agent graph

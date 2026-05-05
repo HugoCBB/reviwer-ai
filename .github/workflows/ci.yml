@@ -14,14 +14,15 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      # Real secrets are stored in GitHub repository secrets.
-      # Fallback dummy values satisfy pydantic-settings validation in tests,
-      # which mock all external calls (LLM, GitHub API, Redis) via pytest-mock/respx.
-      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY || 'ci-placeholder-key' }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN || 'ci-placeholder-token' }}
-      GITHUB_SECRET: ${{ secrets.GITHUB_SECRET || 'ci-placeholder-secret' }}
-      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY || 'ci-placeholder-deepseek' }}
-      REDIS_URL: ${{ secrets.REDIS_URL || 'redis://localhost:6379/0' }}
+      # Unit tests mock all external calls (LLM, GitHub API, Redis) via
+      # respx and pytest-mock — no real credentials are ever used.
+      # If integration tests are added in the future, move real secrets to
+      # GitHub repository secrets and reference them with ${{ secrets.NAME }}.
+      GOOGLE_API_KEY: dummy-google-key
+      GITHUB_TOKEN: dummy-github-token
+      GITHUB_SECRET: test-webhook-secret
+      DEEPSEEK_API_KEY: dummy-deepseek-key
+      REDIS_URL: redis://localhost:6379/0
       LLM_PROVIDER: gemini
 
     steps:
@@ -44,7 +45,7 @@ jobs:
 
       # Run the full test suite and enforce a minimum coverage floor.
       - name: Run tests with coverage
-        run: pytest tests/ --cov=app --cov-report=term-missing --cov-report=xml --cov-fail-under=60
+        run: pytest tests/ --cov=app --cov-report=term-missing --cov-report=xml --cov-fail-under=70
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
