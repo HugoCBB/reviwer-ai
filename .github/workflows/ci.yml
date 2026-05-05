@@ -1,5 +1,7 @@
 name: CI
 
+# Runs on pushes to main/feat branches and all pull requests targeting main.
+# Two jobs: lint+tests (fast feedback) and docker build (integration check).
 on:
   push:
     branches: [main, "feat/**"]
@@ -12,12 +14,15 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      GOOGLE_API_KEY: test-google-key
-      GITHUB_TOKEN: test-github-token
-      GITHUB_SECRET: test-webhook-secret
+      # Real secrets are stored in GitHub repository secrets.
+      # Fallback dummy values satisfy pydantic-settings validation in tests,
+      # which mock all external calls (LLM, GitHub API, Redis) via pytest-mock/respx.
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY || 'ci-placeholder-key' }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN || 'ci-placeholder-token' }}
+      GITHUB_SECRET: ${{ secrets.GITHUB_SECRET || 'ci-placeholder-secret' }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY || 'ci-placeholder-deepseek' }}
+      REDIS_URL: ${{ secrets.REDIS_URL || 'redis://localhost:6379/0' }}
       LLM_PROVIDER: gemini
-      REDIS_URL: redis://localhost:6379/0
-      DEEPSEEK_API_KEY: test-deepseek-key
 
     steps:
       - uses: actions/checkout@v4
@@ -28,14 +33,16 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Install dependencies
+      - name: Install runtime and dev dependencies
         run: |
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
 
-      - name: Lint
+      # Fail fast on import errors, unused imports, and style issues.
+      - name: Lint with ruff
         run: ruff check app/ tests/
 
+      # Run the full test suite and enforce a minimum coverage floor.
       - name: Run tests with coverage
         run: pytest tests/ --cov=app --cov-report=term-missing --cov-report=xml --cov-fail-under=60
 
@@ -52,5 +59,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Verify the image builds cleanly; does not push to any registry.
       - name: Build Docker image
         run: docker build -t reviewer-ai:ci .

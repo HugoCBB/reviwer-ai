@@ -3,7 +3,6 @@ import hmac
 import json
 from unittest.mock import patch
 
-import pytest
 from fastapi.testclient import TestClient
 
 from app.api.main import _verify_signature, app

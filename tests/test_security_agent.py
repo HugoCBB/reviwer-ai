@@ -1,7 +1,5 @@
 from unittest.mock import patch
 
-import pytest
-
 from app.modules.agents.security_agent import _normalize, security_node
 
 _BASE_STATE = {

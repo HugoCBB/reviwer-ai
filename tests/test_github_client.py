@@ -12,28 +12,28 @@ _PR = 42
 
 
 class TestGetPrDiff:
-    @respx.mock
     def test_returns_diff_text(self):
-        respx.get(f"{GITHUB_API}/repos/{_REPO}/pulls/{_PR}").mock(
-            return_value=httpx.Response(200, text="--- a/file.py\n+++ b/file.py")
-        )
-        result = get_pr_diff(_REPO, _PR)
+        with respx.mock:
+            respx.get(f"{GITHUB_API}/repos/{_REPO}/pulls/{_PR}").mock(
+                return_value=httpx.Response(200, text="--- a/file.py\n+++ b/file.py")
+            )
+            result = get_pr_diff(_REPO, _PR)
         assert result == "--- a/file.py\n+++ b/file.py"
 
-    @respx.mock
     def test_raises_on_http_error(self):
-        respx.get(f"{GITHUB_API}/repos/{_REPO}/pulls/{_PR}").mock(
-            return_value=httpx.Response(404)
-        )
-        with pytest.raises(httpx.HTTPStatusError):
-            get_pr_diff(_REPO, _PR)
+        with respx.mock:
+            respx.get(f"{GITHUB_API}/repos/{_REPO}/pulls/{_PR}").mock(
+                return_value=httpx.Response(404)
+            )
+            with pytest.raises(httpx.HTTPStatusError):
+                get_pr_diff(_REPO, _PR)
 
-    @respx.mock
     def test_uses_diff_accept_header(self):
-        route = respx.get(f"{GITHUB_API}/repos/{_REPO}/pulls/{_PR}").mock(
-            return_value=httpx.Response(200, text="diff")
-        )
-        get_pr_diff(_REPO, _PR)
+        with respx.mock:
+            route = respx.get(f"{GITHUB_API}/repos/{_REPO}/pulls/{_PR}").mock(
+                return_value=httpx.Response(200, text="diff")
+            )
+            get_pr_diff(_REPO, _PR)
         assert route.called
         sent_accept = route.calls.last.request.headers["accept"]
         assert "diff" in sent_accept
@@ -49,50 +49,45 @@ class TestPostReview:
             comment="Issue found",
         )
 
-    @respx.mock
     def test_request_changes_when_critical_finding(self):
-        route = respx.post(f"{GITHUB_API}/repos/{_REPO}/pulls/{_PR}/reviews").mock(
-            return_value=httpx.Response(200, json={"id": 1})
-        )
-        post_review(_REPO, _PR, [self._make_finding("critical")], "Summary")
-
+        with respx.mock:
+            route = respx.post(f"{GITHUB_API}/repos/{_REPO}/pulls/{_PR}/reviews").mock(
+                return_value=httpx.Response(200, json={"id": 1})
+            )
+            post_review(_REPO, _PR, [self._make_finding("critical")], "Summary")
         body = json.loads(route.calls.last.request.content)
         assert body["event"] == "REQUEST_CHANGES"
 
-    @respx.mock
     def test_comment_when_no_critical_findings(self):
-        route = respx.post(f"{GITHUB_API}/repos/{_REPO}/pulls/{_PR}/reviews").mock(
-            return_value=httpx.Response(200, json={"id": 1})
-        )
-        post_review(_REPO, _PR, [self._make_finding("high")], "Summary")
-
+        with respx.mock:
+            route = respx.post(f"{GITHUB_API}/repos/{_REPO}/pulls/{_PR}/reviews").mock(
+                return_value=httpx.Response(200, json={"id": 1})
+            )
+            post_review(_REPO, _PR, [self._make_finding("high")], "Summary")
         body = json.loads(route.calls.last.request.content)
         assert body["event"] == "COMMENT"
 
-    @respx.mock
     def test_summary_only_when_no_file_findings(self):
-        # findings without a file key should be excluded from details section
-        respx.post(f"{GITHUB_API}/repos/{_REPO}/pulls/{_PR}/reviews").mock(
-            return_value=httpx.Response(200, json={"id": 1})
-        )
-        post_review(_REPO, _PR, [], "Just a summary")
-        # no exception raised means the request was constructed without findings_md
+        with respx.mock:
+            respx.post(f"{GITHUB_API}/repos/{_REPO}/pulls/{_PR}/reviews").mock(
+                return_value=httpx.Response(200, json={"id": 1})
+            )
+            post_review(_REPO, _PR, [], "Just a summary")
 
-    @respx.mock
     def test_body_includes_details_when_findings_have_file(self):
-        route = respx.post(f"{GITHUB_API}/repos/{_REPO}/pulls/{_PR}/reviews").mock(
-            return_value=httpx.Response(200, json={"id": 1})
-        )
-        post_review(_REPO, _PR, [self._make_finding()], "Summary text")
-
+        with respx.mock:
+            route = respx.post(f"{GITHUB_API}/repos/{_REPO}/pulls/{_PR}/reviews").mock(
+                return_value=httpx.Response(200, json={"id": 1})
+            )
+            post_review(_REPO, _PR, [self._make_finding()], "Summary text")
         body = json.loads(route.calls.last.request.content)
         assert "Summary text" in body["body"]
         assert "Detalhes por agente" in body["body"]
 
-    @respx.mock
     def test_raises_on_http_error(self):
-        respx.post(f"{GITHUB_API}/repos/{_REPO}/pulls/{_PR}/reviews").mock(
-            return_value=httpx.Response(422, json={"message": "Unprocessable"})
-        )
-        with pytest.raises(httpx.HTTPStatusError):
-            post_review(_REPO, _PR, [], "Summary")
+        with respx.mock:
+            respx.post(f"{GITHUB_API}/repos/{_REPO}/pulls/{_PR}/reviews").mock(
+                return_value=httpx.Response(422, json={"message": "Unprocessable"})
+            )
+            with pytest.raises(httpx.HTTPStatusError):
+                post_review(_REPO, _PR, [], "Summary")

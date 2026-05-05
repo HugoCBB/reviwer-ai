@@ -1,7 +1,5 @@
 from unittest.mock import patch
 
-import pytest
-
 from app.core.state import Finding
 from app.modules.agents.aggregator_agent import aggregator_node
 
